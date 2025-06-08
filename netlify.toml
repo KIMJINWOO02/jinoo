@@ -1,4 +1,9 @@
 [build]
+  base = "/"
   command = "pnpm install && pnpm run build"
-  publish = ".next"
+  publish = "/.next"
   node = "18"
+
+[context.production.environment]
+  NODE_VERSION = "18"
+  NODE_ENV = "production"

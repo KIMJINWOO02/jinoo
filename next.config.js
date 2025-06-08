@@ -9,6 +9,9 @@ const nextConfig = {
     config.resolve.fallback = { fs: false, net: false, tls: false };
     return config;
   },
+  env: {
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY
+  }
 };
 
 module.exports = nextConfig;
