@@ -1,10 +1,10 @@
 [build]
   command = "pnpm install && pnpm run build"
   publish = ".next"
-  node_version = "18"
 
 [build.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
+  NEXT_PUBLIC_OPENAI_API_KEY = "your_api_key_here"
 
 [build.environment.pnpm]
   public_hoist_pattern = ["*", "!react", "!react-dom"]
@@ -13,6 +13,3 @@
   from = "/*"
   to = "/index.html"
   status = 200
-
-# 환경 변수는 Netlify 대시보드에서 설정해주세요
-# OPENAI_API_KEY
