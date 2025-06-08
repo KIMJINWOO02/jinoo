@@ -7,27 +7,32 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Download, Wand2, Image as ImageIcon, ExternalLink, Trash2 } from 'lucide-react';
+import { Wand2, ImageIcon, Trash2, Download, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { cn } from '@/lib/utils';
 
 interface ImageGeneratorProps {
   sessionId: string;
 }
 
+type ImageSize = '1024x1024' | '1792x1024' | '1024x1792';
+
 interface GeneratedImage {
   id: string;
   url: string;
   prompt: string;
-  size: string;
-  style: string;
+  size: ImageSize;
+  style: StyleType;
   timestamp: Date;
 }
 
+type StyleType = 'vivid' | 'natural';
+
 export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
   const [prompt, setPrompt] = useState('');
-  const [size, setSize] = useState<'1024x1024' | '1792x1024' | '1024x1792'>('1024x1024');
-  const [style, setStyle] = useState<'vivid' | 'natural'>('vivid');
+  const [size, setSize] = useState<ImageSize>('1024x1024');
+  const [style, setStyle] = useState<StyleType>('vivid');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
 
@@ -118,7 +123,7 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
     toast.success('이미지가 제거되었습니다.');
   };
 
-  const getSizeLabel = (size: string) => {
+  const getSizeLabel = (size: ImageSize) => {
     switch (size) {
       case '1024x1024': return '정사각형';
       case '1792x1024': return '가로형';
@@ -167,7 +172,11 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label className="text-sm font-medium">이미지 크기</Label>
-                <Select value={size} onValueChange={setSize} disabled={isGenerating}>
+                <Select 
+                  value={size.toString()} 
+                  onValueChange={(value: string) => setSize(value as ImageSize)} 
+                  disabled={isGenerating}
+                >
                   <SelectTrigger className="mt-2">
                     <SelectValue />
                   </SelectTrigger>
@@ -182,8 +191,8 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
               <div>
                 <Label className="text-sm font-medium">스타일</Label>
                 <RadioGroup 
-                  value={style} 
-                  onValueChange={setStyle} 
+                  value={style.toString()} 
+                  onValueChange={(value: string) => setStyle(value as StyleType)} 
                   className="mt-2 flex space-x-6" 
                   disabled={isGenerating}
                 >
@@ -207,7 +216,7 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
             >
               {isGenerating ? (
                 <>
-                  <LoadingSpinner size="sm\" className="mr-2" />
+                  <LoadingSpinner size="sm" className="mr-2" />
                   이미지 생성 중... (약 10-30초 소요)
                 </>
               ) : (
