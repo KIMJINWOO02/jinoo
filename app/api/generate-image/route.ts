@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { generateImage } from '@/lib/openai';
+import OpenAI from 'openai';
 
 // CORS 헤더 설정
 const corsHeaders = {
@@ -19,63 +19,74 @@ export async function OPTIONS() {
   });
 }
 
-// 이미지 생성 API 핸들러
+// 간소화된 이미지 생성 API 핸들러
 export async function POST(request: NextRequest) {
-  console.log('=== 이미지 생성 요청 수신 ===');
+  console.log('=== 이미지 생성 요청 수신 (간소화된 버전) ===');
   
   try {
     // 요청 본문 파싱
-    let body;
-    try {
-      body = await request.json();
-      console.log('요청 본문:', JSON.stringify(body, null, 2));
-    } catch (parseError) {
-      console.error('요청 본문 파싱 오류:', parseError);
-      return errorResponse(400, '유효하지 않은 JSON 형식의 요청입니다.');
-    }
+    const body = await request.json();
+    const { prompt } = body;
     
-    const { prompt, model, size, quality, style } = body;
-
-    // 프롬프트 유효성 검사
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
       console.error('유효하지 않은 프롬프트:', prompt);
       return errorResponse(400, '이미지 생성을 위한 프롬프트가 필요합니다.');
     }
 
-    console.log('이미지 생성 요청 파라미터:', {
-      prompt: prompt.substring(0, 100) + (prompt.length > 100 ? '...' : ''),
-      model,
-      size,
-      quality,
-      style
-    });
+    console.log('이미지 생성 요청 - 프롬프트:', prompt.substring(0, 100) + (prompt.length > 100 ? '...' : ''));
     
-    // 이미지 생성 옵션
-    const options = {
-      model: model || 'dall-e-3',
-      size: size || '1024x1024',
-      quality: quality || 'hd',
-      style: style || 'vivid'
-    };
-    
-    console.log('이미지 생성 시작 - 옵션:', options);
-    
-    // 이미지 생성
-    const imageUrl = await generateImage(prompt, options);
-    
-    if (!imageUrl) {
-      throw new Error('OpenAI API에서 이미지 URL을 받지 못했습니다.');
+    // OpenAI 클라이언트 초기화
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenAI API 키가 설정되지 않았습니다.');
     }
 
-    console.log('이미지 생성 성공 - URL:', imageUrl);
+    const openai = new OpenAI({
+      apiKey: apiKey,
+      timeout: 30000, // 30초 타임아웃
+    });
+
+    console.log('OpenAI API 호출 시작...');
     
-    // 성공 응답 반환
-    return successResponse({ imageUrl });
+    // 이미지 생성 요청
+    const response = await openai.images.generate({
+      model: 'dall-e-3',
+      prompt: prompt.trim(),
+      n: 1,
+      size: '1024x1024',
+      quality: 'standard',
+      style: 'vivid',
+      response_format: 'url',
+    });
+
+    console.log('OpenAI API 응답 수신');
+    
+    const imageUrl = response.data[0]?.url;
+    
+    if (!imageUrl) {
+      console.error('생성된 이미지 URL이 없습니다:', response);
+      throw new Error('이미지 생성에 실패했습니다: 유효한 URL을 받지 못함');
+    }
+    
+    console.log('이미지 생성 성공 - URL 길이:', imageUrl.length);
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        imageUrl 
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      }
+    );
     
   } catch (error) {
-    console.error('이미지 생성 중 오류 발생:', error);
+    console.error('이미지 생성 오류:', error);
     
-    // OpenAI API 오류 메시지 추출
     let errorMessage = '이미지 생성 중 오류가 발생했습니다.';
     
     if (error instanceof Error) {
@@ -83,35 +94,30 @@ export async function POST(request: NextRequest) {
       
       // OpenAI API 오류 메시지가 있는 경우
       if ('response' in error && error.response) {
-        const errorData = error.response as any;
-        if (errorData.data?.error?.message) {
-          errorMessage = `OpenAI 오류: ${errorData.data.error.message}`;
+        const errorData = (error.response as any)?.data;
+        if (errorData?.error?.message) {
+          errorMessage = `OpenAI 오류: ${errorData.error.message}`;
         }
       }
     }
     
-    return errorResponse(500, errorMessage);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: errorMessage 
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      }
+    );
   }
 }
 
-// 성공 응답 생성
-function successResponse(data: any) {
-  return new Response(
-    JSON.stringify({ 
-      success: true,
-      ...data 
-    }),
-    {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        ...corsHeaders
-      }
-    }
-  );
-}
-
-// 에러 응답 생성
+// 에러 응답 생성 (타입 오류 방지를 위해 유지)
 function errorResponse(status: number, message: string) {
   return new Response(
     JSON.stringify({ 
@@ -121,7 +127,7 @@ function errorResponse(status: number, message: string) {
     {
       status,
       headers: {
-        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Type': 'application/json',
         ...corsHeaders
       }
     }
