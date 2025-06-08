@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateImage } from '@/lib/openai';
-import { saveGeneratedImage } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,19 +18,8 @@ export async function POST(request: NextRequest) {
     // Get user ID (session-based for now)
     const sessionId = request.headers.get('x-session-id') || 'anonymous';
 
-    // Save generated image to database
-    try {
-      await saveGeneratedImage({
-        prompt,
-        imageUrl,
-        size: size || '1024x1024',
-        style,
-        userId: sessionId,
-      });
-    } catch (error) {
-      console.warn('Failed to save generated image to database:', error);
-      // Continue even if database save fails
-    }
+    // Save generated image to local storage
+    localStorage.setItem(`image-${sessionId}`, imageUrl);
 
     return NextResponse.json({ imageUrl });
   } catch (error) {
