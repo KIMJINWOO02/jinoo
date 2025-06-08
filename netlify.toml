@@ -1,9 +1,12 @@
 [build]
-  command = "npm run build"
+  command = "pnpm install && pnpm run build"
   publish = ".next"
 
 [build.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
+
+[build.environment.pnpm]
+  public_hoist_pattern = ["*", "!react", "!react-dom"]
 
 [[redirects]]
   from = "/*"
