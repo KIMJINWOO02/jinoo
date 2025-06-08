@@ -5,6 +5,7 @@ const nextConfig = {
     domains: ['localhost'],
     unoptimized: true,
   },
+  webpack5: true,
   webpack: (config) => {
     config.resolve.fallback = {
       fs: false,
@@ -23,6 +24,9 @@ const nextConfig = {
   },
   env: {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY
+  },
+  experimental: {
+    esmExternals: true
   }
 };
 

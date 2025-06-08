@@ -11,8 +11,9 @@ if (!apiKey || apiKey === 'your_openai_api_key_here') {
 
 const openai = new OpenAI({
   apiKey: apiKey,
-  baseURL: 'https://api.openai.com/v1',
-  dangerouslyAllowBrowser: true
+  baseURL: process.env.NEXT_PUBLIC_OPENAI_API_BASE || 'https://api.openai.com/v1',
+  dangerouslyAllowBrowser: true,
+  timeout: 30000
 });
 
 /**
