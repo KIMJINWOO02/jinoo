@@ -9,10 +9,63 @@ if (!apiKey || apiKey === 'your_openai_api_key_here') {
   );
 }
 
+// OpenAI 클라이언트 생성 전에 API 키 로깅 (실제 키는 마스킹)
+console.log('OpenAI API Key:', apiKey ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 4)}` : 'Not found');
+console.log('OpenAI API Base URL:', process.env.NEXT_PUBLIC_OPENAI_API_BASE || 'https://api.openai.com/v1');
+
+// 커스텀 fetch 함수 타입 정의
+const customFetch: typeof fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const requestInfo = input instanceof URL ? input.toString() : input;
+  
+  console.log('OpenAI API Request:', {
+    url: requestInfo,
+    method: init?.method,
+    headers: init?.headers ? JSON.parse(JSON.stringify(init.headers)) : {},
+    body: init?.body ? JSON.parse(init.body as string) : null,
+  });
+
+  const startTime = Date.now();
+  try {
+    const response = await fetch(input, init);
+    const endTime = Date.now();
+    
+    console.log(`OpenAI API Response (${endTime - startTime}ms):`, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(Array.from(response.headers.entries())),
+    });
+    
+    // 응답 본문을 복제하여 로깅 후에도 사용할 수 있도록 함
+    const responseClone = response.clone();
+    const responseBody = await response.text();
+    
+    try {
+      const jsonBody = JSON.parse(responseBody);
+      console.log('OpenAI API Response Body:', jsonBody);
+    } catch (e) {
+      console.log('OpenAI API Response Body (non-JSON):', responseBody);
+    }
+    
+    // 응답을 다시 생성하여 반환 (이미 읽은 본문을 다시 사용하기 위함)
+    return new Response(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  } catch (error) {
+    console.error('OpenAI API Request Failed:', error);
+    throw error;
+  }
+};
+
 const openai = new OpenAI({
   apiKey: apiKey,
   baseURL: process.env.NEXT_PUBLIC_OPENAI_API_BASE || 'https://api.openai.com/v1',
-  dangerouslyAllowBrowser: true
+  dangerouslyAllowBrowser: true,
+  // 타임아웃 설정 추가 (30초)
+  timeout: 30000,
+  // 상세한 로깅을 위한 커스텀 fetch 사용
+  fetch: customFetch as any
 });
 
 /**
