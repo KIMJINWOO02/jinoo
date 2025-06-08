@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateChatCompletion } from '@/lib/openai';
-import { saveMessage } from '@/lib/supabase';
 
 // API 응답 타입 정의
 interface ApiResponse {
@@ -34,34 +33,6 @@ export async function POST(request: NextRequest) {
     // Get user ID (for now, we'll use a session-based approach)
     // In a real app, you'd get this from authentication
     const sessionId = request.headers.get('x-session-id') || 'anonymous';
-
-    // Save both user message and assistant response
-    if (messages.length > 0) {
-      const lastUserMessage = messages[messages.length - 1];
-      if (lastUserMessage.role === 'user') {
-        try {
-          // Supabase 설정이 되어 있는 경우에만 메시지 저장 시도
-          if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-            await saveMessage({
-              content: lastUserMessage.content,
-              role: 'user',
-              userId: sessionId,
-            });
-
-            await saveMessage({
-              content: response,
-              role: 'assistant',
-              userId: sessionId,
-            });
-          } else {
-            console.warn('Supabase is not configured. Messages will not be saved.');
-          }
-        } catch (error) {
-          console.warn('Failed to save messages to database:', error);
-          // 데이터베이스 저장 실패해도 채팅은 계속 진행
-        }
-      }
-    }
 
     return NextResponse.json({ response } as ApiResponse);
   } catch (error) {
