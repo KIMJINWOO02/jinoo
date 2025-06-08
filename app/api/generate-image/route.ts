@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { generateImage } from '@/lib/openai';
 
 // CORS 헤더 설정
@@ -8,76 +8,106 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, x-session-id',
 };
 
+// CORS 프리플라이트 요청 처리
 export async function OPTIONS() {
   return new Response(null, {
     status: 204,
-    headers: corsHeaders
+    headers: {
+      ...corsHeaders,
+      'Content-Length': '0',
+    }
   });
 }
 
+// 이미지 생성 API 핸들러
 export async function POST(request: NextRequest) {
+  console.log('=== 이미지 생성 요청 수신 ===');
+  
   try {
-    console.log('Received request to generate image');
-    
-    const body = await request.json();
-    console.log('Request body:', JSON.stringify(body, null, 2));
+    // 요청 본문 파싱
+    let body;
+    try {
+      body = await request.json();
+      console.log('요청 본문:', JSON.stringify(body, null, 2));
+    } catch (parseError) {
+      console.error('요청 본문 파싱 오류:', parseError);
+      return errorResponse(400, '유효하지 않은 JSON 형식의 요청입니다.');
+    }
     
     const { prompt } = body;
 
-    if (!prompt) {
-      console.error('No prompt provided');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Prompt is required' 
-        }), 
-        { 
-          status: 400, 
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          } 
-        }
-      );
+    // 프롬프트 유효성 검사
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+      console.error('유효하지 않은 프롬프트:', prompt);
+      return errorResponse(400, '이미지 생성을 위한 프롬프트가 필요합니다.');
     }
 
-    console.log('Generating image with prompt:', prompt);
-    const imageUrl = await generateImage(prompt);
-    console.log('Generated image URL:', imageUrl);
-
-    if (!imageUrl) {
-      throw new Error('No image URL returned from OpenAI');
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        imageUrl 
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        }
-      }
-    );
-  } catch (error) {
-    console.error('Image generation API error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to generate image';
+    console.log('이미지 생성 시도 - 프롬프트:', prompt.substring(0, 100) + (prompt.length > 100 ? '...' : ''));
     
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: errorMessage 
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
+    // 이미지 생성
+    const imageUrl = await generateImage(prompt);
+    
+    if (!imageUrl) {
+      throw new Error('OpenAI API에서 이미지 URL을 받지 못했습니다.');
+    }
+
+    console.log('이미지 생성 성공 - URL:', imageUrl);
+    
+    // 성공 응답 반환
+    return successResponse({ imageUrl });
+    
+  } catch (error) {
+    console.error('이미지 생성 중 오류 발생:', error);
+    
+    // OpenAI API 오류 메시지 추출
+    let errorMessage = '이미지 생성 중 오류가 발생했습니다.';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // OpenAI API 오류 메시지가 있는 경우
+      if ('response' in error && error.response) {
+        const errorData = error.response as any;
+        if (errorData.data?.error?.message) {
+          errorMessage = `OpenAI 오류: ${errorData.data.error.message}`;
         }
       }
-    );
+    }
+    
+    return errorResponse(500, errorMessage);
   }
+}
+
+// 성공 응답 생성
+function successResponse(data: any) {
+  return new Response(
+    JSON.stringify({ 
+      success: true,
+      ...data 
+    }),
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        ...corsHeaders
+      }
+    }
+  );
+}
+
+// 에러 응답 생성
+function errorResponse(status: number, message: string) {
+  return new Response(
+    JSON.stringify({ 
+      success: false, 
+      error: message 
+    }),
+    {
+      status,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        ...corsHeaders
+      }
+    }
+  );
 }

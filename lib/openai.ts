@@ -42,19 +42,36 @@ export const generateChatCompletion = async (
 export const generateImage = async (
   prompt: string
 ): Promise<string> => {
+  console.log('Starting image generation with prompt:', prompt);
+  
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    throw new Error('프롬프트는 필수이며, 비어있을 수 없습니다.');
+  }
+
   try {
+    console.log('Sending request to OpenAI API...');
     const response = await openai.images.generate({
       model: 'dall-e-2',
-      prompt: prompt,
+      prompt: prompt.trim(),
       n: 1,
       size: '1024x1024',
       response_format: 'url',
     });
 
-    if (!response.data || !response.data[0] || !response.data[0].url) {
-      throw new Error('No image URL received from OpenAI');
+    console.log('OpenAI API Response:', JSON.stringify(response, null, 2));
+
+    if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+      throw new Error('OpenAI API에서 유효한 응답을 받지 못했습니다.');
     }
-    return response.data[0].url;
+
+    const imageUrl = response.data[0]?.url;
+
+    if (!imageUrl) {
+      throw new Error('OpenAI API에서 이미지 URL을 받지 못했습니다.');
+    }
+
+    console.log('Successfully generated image URL:', imageUrl);
+    return imageUrl;
   } catch (error) {
     console.error('Image generation error:', error);
     throw new Error('Failed to generate image');
