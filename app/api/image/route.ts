@@ -3,8 +3,7 @@ import { generateImage } from '@/lib/openai';
 
 interface ImageRequest {
   prompt: string;
-  size?: '1024x1024' | '1792x1024' | '1024x1792';
-  style?: 'vivid' | 'natural';
+  size?: '1024x1024' | '512x512' | '256x256';
 }
 
 export async function POST(request: NextRequest) {
@@ -26,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const imageUrl = await generateImage(prompt, size, style);
+    const imageUrl = await generateImage(prompt, size);
     return NextResponse.json({ imageUrl });
   } catch (error) {
     console.error('Image generation error:', error);
