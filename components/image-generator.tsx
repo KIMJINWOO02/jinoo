@@ -1,23 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Wand2, ImageIcon, Trash2, Download, ExternalLink } from 'lucide-react';
+import { Wand2, ImageIcon, Trash2, Download, ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { cn } from '@/lib/utils';
 
-interface ImageGeneratorProps {
-  sessionId: string;
-}
-
+// 타입 정의
 type ImageSize = '1024x1024' | '1792x1024' | '1024x1792';
+type StyleType = 'vivid' | 'natural';
 
 interface GeneratedImage {
   id: string;
@@ -28,7 +26,9 @@ interface GeneratedImage {
   timestamp: Date;
 }
 
-type StyleType = 'vivid' | 'natural';
+interface ImageGeneratorProps {
+  sessionId: string;
+}
 
 export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
   const [prompt, setPrompt] = useState('');
@@ -36,20 +36,53 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
   const [style, setStyle] = useState<StyleType>('vivid');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  
+  // 마지막 요청 시간 추적을 위한 ref
+  const lastRequestTime = useRef<number>(0);
+  // 재시도 횟수 추적
+  const retryCount = useRef<number>(0);
+  const MAX_RETRIES = 2; // 최대 재시도 횟수
+  const RATE_LIMIT_DELAY = 3000; // 3초 대기
 
-  const generateImage = async (e: React.FormEvent) => {
+  // 이미지 생성 핸들러
+  const generateImage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim() || isGenerating) return;
-
+    
+    // 유효성 검사
+    if (!prompt.trim()) {
+      setError('이미지 생성을 위한 설명을 입력해주세요.');
+      return;
+    }
+    
+    if (isGenerating) return;
+    
+    // 요청 간 최소 지연 시간 확인 (과도한 요청 방지)
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime.current;
+    const minDelay = 2000; // 2초 간격 요청 제한
+    
+    setIsGenerating(true);
+    setError(null);
+    
     try {
-      const startTime = Date.now();
-      console.log('API 요청 시작...');
+      // 요청 간격이 너무 짧으면 대기
+      if (timeSinceLastRequest < minDelay) {
+        const delay = minDelay - timeSinceLastRequest;
+        console.log(`요청 간격이 너무 짧아 ${delay}ms 대기합니다.`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
       
+      const startTime = Date.now();
+      console.log('이미지 생성 요청 시작...');
+      
+      // API 요청
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
+          'x-session-id': sessionId,
         },
         body: JSON.stringify({
           prompt: prompt.trim(),
@@ -72,6 +105,25 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
         throw new Error(`서버 응답을 처리할 수 없습니다: ${textResponse.substring(0, 200)}`);
       }
 
+      // 429 Too Many Requests 오류 처리
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '3', 10) * 1000;
+        
+        if (retryCount.current < MAX_RETRIES) {
+          retryCount.current += 1;
+          console.log(`요청 한도 초과. ${retryAfter/1000}초 후 재시도 (${retryCount.current}/${MAX_RETRIES})...`);
+          
+          // 사용자에게 알림
+          toast.warning(`요청이 너무 많습니다. ${retryAfter/1000}초 후 다시 시도합니다...`);
+          
+          // 지연 후 재시도
+          await new Promise(resolve => setTimeout(resolve, retryAfter));
+          return generateImage(e);
+        } else {
+          throw new Error('요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.');
+        }
+      }
+
       if (!response.ok) {
         const errorMessage = data?.error || `서버 오류 (${response.status})`;
         console.error('API 오류:', errorMessage);
@@ -88,7 +140,11 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
         throw new Error('생성된 이미지 URL을 받지 못했습니다');
       }
 
+      // 이미지 생성 성공
       console.log('이미지 생성 성공 - URL 길이:', data.imageUrl.length);
+      lastRequestTime.current = Date.now(); // 마지막 요청 시간 업데이트
+      retryCount.current = 0; // 재시도 카운터 초기화
+      
       const newImage: GeneratedImage = {
         id: Date.now().toString(),
         url: data.imageUrl,
@@ -98,47 +154,43 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
         timestamp: new Date(),
       };
 
-      setGeneratedImages(prev => [newImage, ...prev]);
-      setPrompt('');
+      setGeneratedImages(prev => [newImage, ...prev].slice(0, 10)); // 최대 10개 이미지 유지
+      setPrompt(''); // 프롬프트 초기화
       toast.success('이미지가 성공적으로 생성되었습니다!');
     } catch (error) {
-      console.error('Error generating image:', error);
-      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다';
-      
-      if (errorMessage.includes('OPENAI_API_KEY')) {
-        toast.error('OpenAI API 키가 설정되지 않았습니다. .env.local 파일을 확인해 주세요.');
-      } else {
-        toast.error('이미지 생성에 실패했습니다. 다시 시도해 주세요.');
-      }
+      console.error('이미지 생성 오류:', error);
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      setError(errorMessage);
+      toast.error(`이미지 생성 실패: ${errorMessage}`);
     } finally {
       setIsGenerating(false);
     }
+  }, [prompt, size, style, isGenerating, sessionId]); // 종속성 배열 추가
   };
 
-  const downloadImage = async (imageUrl: string, prompt: string) => {
+  const openImageInNewTab = (imageUrl: string) => {
+    window.open(imageUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  // 이미지 다운로드 핸들러
+  const handleDownload = async (imageUrl: string, imageId: string) => {
     try {
       toast.info('이미지를 다운로드하고 있습니다...');
-      
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ai-generated-${Date.now()}.png`;
+      a.download = `ai-image-${imageId}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
       toast.success('이미지가 다운로드되었습니다!');
     } catch (error) {
-      console.error('Error downloading image:', error);
+      console.error('이미지 다운로드 오류:', error);
       toast.error('이미지 다운로드에 실패했습니다.');
     }
-  };
-
-  const openImageInNewTab = (imageUrl: string) => {
-    window.open(imageUrl, '_blank');
   };
 
   const removeImage = (imageId: string) => {
@@ -164,91 +216,108 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="w-full max-w-4xl mx-auto p-4">
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Wand2 className="w-5 h-5 text-purple-500" />
-            <span>AI 이미지 생성</span>
+          <CardTitle className="flex items-center gap-2 text-xl font-bold">
+            <Wand2 className="w-6 h-6 text-primary" />
+            AI 이미지 생성기
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={generateImage} className="space-y-6">
-            <div>
-              <Label htmlFor="prompt" className="text-sm font-medium">
-                프롬프트 <span className="text-destructive">*</span>
+            <div className="space-y-3">
+              <Label htmlFor="prompt" className="text-base font-medium">
+                이미지 설명
+                <span className="text-red-500 ml-1">*</span>
               </Label>
-              <Input
-                id="prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="생성할 이미지를 자세히 설명해 주세요... (예: 석양이 지는 바다 위의 범선, 디지털 아트 스타일)"
-                disabled={isGenerating}
-                className="mt-2"
-                maxLength={1000}
-              />
-              <div className="text-xs text-muted-foreground mt-1">
-                {prompt.length}/1000 문자 - 구체적이고 상세한 설명일수록 더 좋은 결과를 얻을 수 있습니다
+              <div className="relative">
+                <Textarea
+                  id="prompt"
+                  placeholder="생성할 이미지를 상세히 설명해주세요. 예) 해질녘의 바다 풍경, 고양이가 소파에서 낮잠 자는 모습"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  disabled={isGenerating}
+                  className="min-h-[120px] text-base"
+                  rows={4}
+                />
+                {isGenerating && (
+                  <div className="absolute right-3 top-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                )}
               </div>
+              <p className="text-sm text-muted-foreground">
+                원하는 이미지를 자세히 설명해주세요. 구체적일수록 좋은 결과를 얻을 수 있습니다.
+              </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
+              <div className="space-y-2">
                 <Label className="text-sm font-medium">이미지 크기</Label>
                 <Select 
-                  value={size.toString()} 
-                  onValueChange={(value: string) => setSize(value as ImageSize)} 
+                  value={size} 
+                  onValueChange={(value) => setSize(value as ImageSize)}
                   disabled={isGenerating}
                 >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue />
+                  <SelectTrigger>
+                    <SelectValue placeholder="이미지 크기 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1024x1024">정사각형 (1024×1024)</SelectItem>
-                    <SelectItem value="1792x1024">가로형 (1792×1024)</SelectItem>
-                    <SelectItem value="1024x1792">세로형 (1024×1792)</SelectItem>
+                    <SelectItem value="1024x1024">정사각형 (1024x1024)</SelectItem>
+                    <SelectItem value="1792x1024">와이드 (1792x1024)</SelectItem>
+                    <SelectItem value="1024x1792">세로 (1024x1792)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div>
+              <div className="space-y-2">
                 <Label className="text-sm font-medium">스타일</Label>
-                <RadioGroup 
-                  value={style.toString()} 
-                  onValueChange={(value: string) => setStyle(value as StyleType)} 
-                  className="mt-2 flex space-x-6" 
+                <Select 
+                  value={style} 
+                  onValueChange={(value) => setStyle(value as StyleType)}
                   disabled={isGenerating}
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="vivid" id="vivid" />
-                    <Label htmlFor="vivid" className="text-sm">생생한 (더 드라마틱하고 화려함)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="natural" id="natural" />
-                    <Label htmlFor="natural" className="text-sm">자연스러운 (더 사실적이고 차분함)</Label>
-                  </div>
-                </RadioGroup>
+                  <SelectTrigger>
+                    <SelectValue placeholder="스타일 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vivid">생동감 있는 (Vivid)</SelectItem>
+                    <SelectItem value="natural">자연스러운 (Natural)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             
-            <Button 
-              type="submit" 
-              disabled={!prompt.trim() || isGenerating} 
-              className="w-full h-12"
-              size="lg"
-            >
-              {isGenerating ? (
-                <>
-                  <LoadingSpinner size="sm" className="mr-2" />
-                  이미지 생성 중... (약 10-30초 소요)
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  이미지 생성하기
-                </>
+            <div className="flex flex-col space-y-4 pt-2">
+              {error && (
+                <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                  <div className="font-medium">오류 발생</div>
+                  <div className="mt-1">{error}</div>
+                </div>
               )}
-            </Button>
+              
+              <Button 
+                type="submit" 
+                className="w-full py-6 text-base font-medium bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
+                disabled={isGenerating || !prompt.trim()}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    이미지 생성 중...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="mr-2 h-5 w-5" />
+                    이미지 생성하기 (DALL·E 3)
+                  </>
+                )}
+              </Button>
+              
+              <p className="text-xs text-muted-foreground text-center">
+                한 번에 하나의 이미지만 생성할 수 있습니다. 생성에는 약 10-20초가 소요될 수 있습니다.
+              </p>
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -317,57 +386,55 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
                   <Image
                     src={image.url}
                     alt={image.prompt}
+                    fill
                     className="object-cover transition-transform group-hover:scale-105"
-                    width={512}
-                    height={512}
-                    priority={false}
-                    loading="lazy"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <Button
-                      onClick={() => downloadImage(image.url, image.prompt)}
                       variant="secondary"
                       size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(image.url, image.id);
+                      }}
                     >
                       <Download className="w-4 h-4 mr-2" />
                       다운로드
                     </Button>
                     <Button
-                      onClick={() => openImageInNewTab(image.url)}
                       variant="secondary"
                       size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(image.url, '_blank', 'noopener,noreferrer');
+                      }}
                     >
                       <ExternalLink className="w-4 h-4 mr-2" />
-                      크게 보기
-                    </Button>
-                    <Button
-                      onClick={() => removeImage(image.id)}
-                      variant="destructive"
-                      size="sm"
-                    >
-                      <Trash2 className="w-4 h-4" />
+                      열기
                     </Button>
                   </div>
                 </div>
                 <CardContent className="p-4">
-                  <p 
-                    className="text-sm font-medium mb-2 line-clamp-2" 
-                    title={image.prompt}
-                  >
+                  <p className="text-sm text-foreground line-clamp-2 mb-2">
                     {image.prompt}
                   </p>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div className="flex items-center space-x-2">
-                      <span>{getSizeLabel(image.size)}</span>
-                      <span>•</span>
-                      <span>{getStyleLabel(image.style)}</span>
-                    </div>
-                    <span>{image.timestamp.toLocaleString('ko-KR', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}</span>
+                    <span className="inline-flex items-center px-2 py-1 bg-muted rounded-full">
+                      {getSizeLabel(image.size)}
+                    </span>
+                    <span className="capitalize">
+                      {getStyleLabel(image.style)}
+                    </span>
+                    <span>
+                      {new Date(image.timestamp).toLocaleString('ko-KR', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                      })}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
