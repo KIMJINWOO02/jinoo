@@ -2,8 +2,20 @@
   base = "/"
   command = "pnpm install && pnpm approve-builds && pnpm run build"
   publish = "/.next"
-  node = "18"
+  node = "20"
 
-[context.production.environment]
-  NODE_VERSION = "18"
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["openai"]
+  included_files = [".env.local"]
+
+[build.environment]
+  NODE_VERSION = "20"
   NODE_ENV = "production"
+
+[context.production]
+  command = "pnpm install && pnpm run build"
+
+  [context.production.environment]
+    NODE_VERSION = "20"
+    NODE_ENV = "production"

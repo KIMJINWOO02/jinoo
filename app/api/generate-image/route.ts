@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       return errorResponse(400, '유효하지 않은 JSON 형식의 요청입니다.');
     }
     
-    const { prompt } = body;
+    const { prompt, model, size, quality, style } = body;
 
     // 프롬프트 유효성 검사
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -42,10 +42,26 @@ export async function POST(request: NextRequest) {
       return errorResponse(400, '이미지 생성을 위한 프롬프트가 필요합니다.');
     }
 
-    console.log('이미지 생성 시도 - 프롬프트:', prompt.substring(0, 100) + (prompt.length > 100 ? '...' : ''));
+    console.log('이미지 생성 요청 파라미터:', {
+      prompt: prompt.substring(0, 100) + (prompt.length > 100 ? '...' : ''),
+      model,
+      size,
+      quality,
+      style
+    });
+    
+    // 이미지 생성 옵션
+    const options = {
+      model: model || 'dall-e-3',
+      size: size || '1024x1024',
+      quality: quality || 'hd',
+      style: style || 'vivid'
+    };
+    
+    console.log('이미지 생성 시작 - 옵션:', options);
     
     // 이미지 생성
-    const imageUrl = await generateImage(prompt);
+    const imageUrl = await generateImage(prompt, options);
     
     if (!imageUrl) {
       throw new Error('OpenAI API에서 이미지 URL을 받지 못했습니다.');
