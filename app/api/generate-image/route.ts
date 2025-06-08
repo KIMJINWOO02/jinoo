@@ -3,7 +3,7 @@ import { generateImage } from '@/lib/openai';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, size, style } = await request.json();
+    const { prompt } = await request.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -13,13 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate image using DALL-E
-    const imageUrl = await generateImage(prompt, size, style);
-
-    // Get user ID (session-based for now)
-    const sessionId = request.headers.get('x-session-id') || 'anonymous';
-
-    // Save generated image to local storage
-    localStorage.setItem(`image-${sessionId}`, imageUrl);
+    const imageUrl = await generateImage(prompt);
 
     return NextResponse.json({ imageUrl });
   } catch (error) {
