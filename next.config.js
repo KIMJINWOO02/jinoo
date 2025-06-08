@@ -3,9 +3,8 @@ const nextConfig = {
   reactStrictMode: true,
   images: {
     domains: ['localhost'],
-    unoptimized: true,
+    unoptimized: true
   },
-  webpack5: true,
   webpack: (config) => {
     config.resolve.fallback = {
       fs: false,
@@ -19,15 +18,12 @@ const nextConfig = {
       https: false,
       os: false,
       url: false
-    };
-    return config;
+    }
+    return config
   },
   env: {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY
-  },
-  experimental: {
-    esmExternals: true
   }
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
