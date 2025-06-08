@@ -1,6 +1,8 @@
 [build]
   command = "pnpm install --frozen-lockfile && pnpm run build"
   publish = ".next"
+  base = "/"
+  node_version = "18"
 
 [build.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
