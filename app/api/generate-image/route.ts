@@ -15,11 +15,22 @@ export async function POST(request: NextRequest) {
     // Generate image using DALL-E
     const imageUrl = await generateImage(prompt);
 
-    return NextResponse.json({ imageUrl });
+    if (!imageUrl) {
+      throw new Error('No image URL returned from OpenAI');
+    }
+
+    return NextResponse.json({ 
+      success: true,
+      imageUrl 
+    });
   } catch (error) {
     console.error('Image generation API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate image';
     return NextResponse.json(
-      { error: 'Failed to generate image' },
+      { 
+        success: false,
+        error: errorMessage 
+      },
       { status: 500 }
     );
   }

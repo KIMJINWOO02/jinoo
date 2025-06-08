@@ -67,6 +67,15 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
 
       const data = await response.json();
       
+      if (!data.success) {
+        throw new Error(data.error || '이미지 생성에 실패했습니다');
+      }
+
+      // 이미지 URL이 유효한지 확인
+      if (!data.imageUrl) {
+        throw new Error('생성된 이미지 URL을 가져오지 못했습니다');
+      }
+
       const newImage: GeneratedImage = {
         id: Date.now().toString(),
         url: data.imageUrl,
