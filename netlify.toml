@@ -1,7 +1,7 @@
 [build]
   command = "pnpm install && pnpm run build"
   publish = ".next"
-  node_version = "18"
+  node = "18"
 
 [build.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
