@@ -1,12 +1,15 @@
 [build]
   command = "pnpm install && pnpm run build"
   publish = ".next"
+  base = "/"
+  node_version = "18"
 
 [build.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
 
 [build.environment.pnpm]
   public_hoist_pattern = ["*", "!react", "!react-dom"]
+  store_directory = ".pnpm-store"
 
 [[redirects]]
   from = "/*"
@@ -15,3 +18,13 @@
 
 # 환경 변수는 Netlify 대시보드에서 설정해주세요
 # OPENAI_API_KEY
+
+[context.production]
+  command = "pnpm install --frozen-lockfile && pnpm run build"
+  environment = {
+    NODE_ENV = "production"
+  }
+
+[context.production.environment.pnpm]
+  public_hoist_pattern = ["*", "!react", "!react-dom"]
+  store_directory = ".pnpm-store"
