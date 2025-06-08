@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -291,10 +292,13 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
             {generatedImages.map((image) => (
               <Card key={image.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
                 <div className="aspect-square relative">
-                  <img
+                  <Image
                     src={image.url}
                     alt={image.prompt}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    className="object-cover transition-transform group-hover:scale-105"
+                    width={512}
+                    height={512}
+                    priority={false}
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
