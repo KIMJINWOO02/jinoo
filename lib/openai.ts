@@ -52,7 +52,11 @@ export const generateImage = async (
       quality: 'standard',
     });
 
-    return response.data[0]?.url || '';
+    const imageData = response.data;
+    if (!imageData || !Array.isArray(imageData) || imageData.length === 0) {
+      throw new Error('No image data received from OpenAI');
+    }
+    return imageData[0].url || '';
   } catch (error) {
     console.error('Error generating image:', error);
     throw new Error('Failed to generate image');
