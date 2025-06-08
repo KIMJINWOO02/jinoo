@@ -165,8 +165,7 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, size, style, isGenerating, sessionId]); // 종속성 배열 추가
-  };
+  }, [prompt, size, style, isGenerating, sessionId]);
 
   const openImageInNewTab = (imageUrl: string) => {
     window.open(imageUrl, '_blank', 'noopener,noreferrer');
