@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { prompt, size = '1024x1024', style = 'vivid' } = await request.json();
+    const { prompt, size = '1024x1024' } = await request.json();
 
     if (!prompt) {
       return NextResponse.json(
