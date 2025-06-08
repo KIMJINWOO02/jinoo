@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const imageUrl = await generateImage(prompt, size);
+    const imageUrl = await generateImage(prompt);
     return NextResponse.json({ imageUrl });
   } catch (error) {
     console.error('Image generation error:', error);

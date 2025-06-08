@@ -40,15 +40,14 @@ export const generateChatCompletion = async (
  * Generate an image using DALL-E
  */
 export const generateImage = async (
-  prompt: string,
-  size: '1024x1024' | '512x512' | '256x256' = '1024x1024'
+  prompt: string
 ): Promise<string> => {
   try {
     const response = await openai.images.generate({
       model: 'dall-e-2',
       prompt: prompt,
       n: 1,
-      size: size,
+      size: '1024x1024',
       response_format: 'url',
     });
 
