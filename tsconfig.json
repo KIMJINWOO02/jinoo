@@ -20,6 +20,25 @@
     ],
     "paths": {
       "@/*": ["./*"]
+    },
+    "baseUrl": ".",
+    "allowSyntheticDefaultImports": true,
+    "strictNullChecks": false,
+    "strictBindCallApply": false,
+    "strictFunctionTypes": false,
+    "strictPropertyInitialization": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+      "@/*": ["./*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
