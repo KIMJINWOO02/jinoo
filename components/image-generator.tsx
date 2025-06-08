@@ -41,18 +41,15 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
     e.preventDefault();
     if (!prompt.trim() || isGenerating) return;
 
-    setIsGenerating(true);
-    toast.info('AI가 이미지를 생성하고 있습니다...', {
-      duration: 10000,
-    });
-
     try {
-      console.log('Sending request to generate image with prompt:', prompt.trim());
+      const startTime = Date.now();
+      console.log('API 요청 시작...');
+      
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-session-id': sessionId,
+          'Cache-Control': 'no-cache',
         },
         body: JSON.stringify({
           prompt: prompt.trim(),
@@ -61,20 +58,37 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
         }),
       });
 
-      const data = await response.json();
-      console.log('API Response:', data);
+      const endTime = Date.now();
+      console.log(`API 응답 수신 (${endTime - startTime}ms) - 상태 코드:`, response.status);
+      
+      let data;
+      try {
+        data = await response.json();
+        console.log('API 응답 데이터:', data);
+      } catch (parseError) {
+        console.error('응답 파싱 오류:', parseError);
+        const textResponse = await response.text();
+        console.error('원본 응답 텍스트:', textResponse);
+        throw new Error(`서버 응답을 처리할 수 없습니다: ${textResponse.substring(0, 200)}`);
+      }
 
-      if (!response.ok || !data.success) {
-        const errorMessage = data?.error || '이미지 생성에 실패했습니다';
-        console.error('API Error:', errorMessage);
+      if (!response.ok) {
+        const errorMessage = data?.error || `서버 오류 (${response.status})`;
+        console.error('API 오류:', errorMessage);
         throw new Error(errorMessage);
       }
 
-      // 이미지 URL이 유효한지 확인
-      if (!data.imageUrl) {
-        throw new Error('생성된 이미지 URL을 가져오지 못했습니다');
+      if (!data.success) {
+        console.error('API 실패 응답:', data);
+        throw new Error(data.error || '이미지 생성에 실패했습니다');
       }
 
+      if (!data.imageUrl) {
+        console.error('이미지 URL 누락:', data);
+        throw new Error('생성된 이미지 URL을 받지 못했습니다');
+      }
+
+      console.log('이미지 생성 성공 - URL 길이:', data.imageUrl.length);
       const newImage: GeneratedImage = {
         id: Date.now().toString(),
         url: data.imageUrl,
