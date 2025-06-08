@@ -11,10 +11,10 @@ interface ApiResponse {
 export async function POST(request: NextRequest) {
   try {
     // OpenAI API 키 확인
-    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey || apiKey === 'your_api_key_here') {
       return NextResponse.json(
-        { error: 'OpenAI API key is not configured. Please set NEXT_PUBLIC_OPENAI_API_KEY in netlify.toml.' },
+        { error: 'OpenAI API key is not configured. Please set OPENAI_API_KEY in .env.local.' },
         { status: 500 }
       );
     }
