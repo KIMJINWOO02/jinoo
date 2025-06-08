@@ -1,11 +1,19 @@
 import { NextRequest } from 'next/server';
 import OpenAI from 'openai';
 
+// 환경 변수 로드 확인
+console.log('환경 변수 로드 상태:', {
+  NODE_ENV: process.env.NODE_ENV,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY ? '설정됨' : '설정되지 않음'
+});
+
 // CORS 헤더 설정
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, x-session-id, Authorization',
+  'Access-Control-Max-Age': '86400', // 24시간 동안 프리플라이트 요청 캐시
+  'Vary': 'Origin',
 };
 
 // CORS 프리플라이트 요청 처리
@@ -41,17 +49,23 @@ function createErrorResponse(status: number, message: string, details?: any) {
 
 // 이미지 생성 API 핸들러
 export async function POST(request: NextRequest) {
-  console.log('=== 이미지 생성 요청 수신 ===');
+  const requestId = Math.random().toString(36).substring(2, 9);
+  console.log(`[${requestId}] === 이미지 생성 요청 수신 ===`);
   const startTime = Date.now();
+  
+  // 요청 헤더 로깅
+  console.log(`[${requestId}] 요청 헤더:`, Object.fromEntries(request.headers.entries()));
   
   try {
     // 요청 본문 파싱
     let body;
     try {
-      body = await request.json();
-      console.log('요청 본문:', JSON.stringify(body, null, 2));
+      const rawBody = await request.text();
+      console.log(`[${requestId}] 원본 요청 본문:`, rawBody);
+      body = JSON.parse(rawBody);
+      console.log(`[${requestId}] 파싱된 요청 본문:`, JSON.stringify(body, null, 2));
     } catch (parseError) {
-      console.error('요청 본문 파싱 오류:', parseError);
+      console.error(`[${requestId}] 요청 본문 파싱 오류:`, parseError);
       return createErrorResponse(400, '유효하지 않은 JSON 형식의 요청 본문입니다.');
     }
     
@@ -71,88 +85,120 @@ export async function POST(request: NextRequest) {
       return createErrorResponse(500, '서버 구성 오류가 발생했습니다.');
     }
 
+    console.log(`[${requestId}] OpenAI API 키 길이:`, apiKey.length);
+    
     const openai = new OpenAI({
       apiKey: apiKey,
       timeout: 60000, // 60초 타임아웃
     });
 
-    console.log('OpenAI API 클라이언트 초기화 완료');
+    console.log(`[${requestId}] OpenAI API 클라이언트 초기화 완료`);
     
     // 이미지 생성 요청
-    const response = await openai.images.generate({
-      model: 'dall-e-3',
-      prompt: prompt.trim(),
-      n: 1,
-      size: size,
-      style: style,
-      quality: 'hd',
-      response_format: 'url',
-    });
+    const generationStartTime = Date.now();
+    let apiResponse;
+    
+    try {
+      console.log(`[${requestId}] OpenAI API 호출 시작...`);
+      apiResponse = await openai.images.generate({
+        model: 'dall-e-3',
+        prompt: prompt.trim(),
+        n: 1,
+        size: size,
+        style: style,
+        quality: 'hd',
+        response_format: 'url',
+      });
+      console.log(`[${requestId}] OpenAI API 호출 성공 (${Date.now() - generationStartTime}ms)`);
+    } catch (apiError) {
+      console.error(`[${requestId}] OpenAI API 호출 실패:`, apiError);
+      throw new Error(`OpenAI API 호출 중 오류가 발생했습니다: ${apiError.message}`);
+    }
 
-    console.log('OpenAI API 응답 수신');
+    console.log(`[${requestId}] OpenAI API 응답 수신`);
+    console.log(`[${requestId}] 응답 데이터:`, JSON.stringify(apiResponse, null, 2));
 
-    if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
-      console.error('유효하지 않은 응답 데이터:', response);
+    if (!apiResponse || !apiResponse.data || !Array.isArray(apiResponse.data) || apiResponse.data.length === 0) {
+      console.error(`[${requestId}] 유효하지 않은 응답 데이터:`, apiResponse);
       throw new Error('OpenAI API에서 유효한 응답을 받지 못했습니다.');
     }
 
-    const imageUrl = response.data[0]?.url;
+    const imageUrl = apiResponse.data[0]?.url;
     if (!imageUrl) {
-      console.error('이미지 URL이 없습니다. 응답 데이터:', response);
+      console.error(`[${requestId}] 이미지 URL이 없습니다. 응답 데이터:`, apiResponse);
       throw new Error('생성된 이미지 URL을 받지 못했습니다.');
     }
 
-    console.log('이미지 생성 성공 - URL 길이:', imageUrl.length);
+    console.log(`[${requestId}] 이미지 생성 성공 - URL 길이:`, imageUrl.length);
     
     const responseData = {
       success: true,
-      imageUrl: imageUrl
+      imageUrl: imageUrl,
+      requestId: requestId
     };
     
-    console.log('응답 데이터:', JSON.stringify(responseData, null, 2));
+    console.log(`[${requestId}] 최종 응답 데이터:`, JSON.stringify({
+      ...responseData,
+      imageUrl: `${imageUrl.substring(0, 50)}...` // URL의 일부만 로깅
+    }, null, 2));
     
-    return new Response(
+    const response = new Response(
       JSON.stringify(responseData),
       {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
+          'X-Request-ID': requestId,
         },
       }
     );
+    
+    console.log(`[${requestId}] 응답 헤더:`, Object.fromEntries(response.headers.entries()));
+    return response;
+    
   } catch (error) {
-    console.error('이미지 생성 중 오류 발생:', error);
+    const errorId = `err-${Math.random().toString(36).substring(2, 8)}`;
+    console.error(`[${requestId}] [${errorId}] 이미지 생성 중 오류 발생:`, error);
     
     // OpenAI API 오류 처리
     if (error instanceof OpenAI.APIError) {
       const errorDetails = {
+        errorId,
         status: error.status,
         code: error.code,
         type: error.type,
-        message: error.message
+        message: error.message,
+        requestId
       };
       
-      console.error('OpenAI API 오류 상세:', errorDetails);
+      console.error(`[${requestId}] [${errorId}] OpenAI API 오류 상세:`, errorDetails);
       
       return createErrorResponse(
         error.status || 500,
         `OpenAI API 오류: ${error.message}`,
-        process.env.NODE_ENV === 'development' ? errorDetails : undefined
+        process.env.NODE_ENV === 'development' ? errorDetails : { errorId }
       );
     }
     
     // 기타 오류 처리
     const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
-    console.error('처리되지 않은 오류:', error);
+    console.error(`[${requestId}] [${errorId}] 처리되지 않은 오류:`, error);
     
     return createErrorResponse(
       500, 
       `이미지 생성 중 오류가 발생했습니다: ${errorMessage}`,
-      process.env.NODE_ENV === 'development' ? { error: error } : undefined
+      process.env.NODE_ENV === 'development' ? { error: String(error), errorId } : { errorId }
     );
+    
   } finally {
     const endTime = Date.now();
-    console.log(`이미지 생성 요청 처리 완료 (${endTime - startTime}ms)`);
+    const duration = endTime - startTime;
+    console.log(`[${requestId}] 요청 처리 완료 (${duration}ms)`);
+    
+    // 성공/실패 여부에 따른 추가 로깅
+    if (duration > 10000) {
+      console.warn(`[${requestId}] 경고: 요청 처리 시간이 10초를 초과했습니다 (${duration}ms)`);
+    }
   }
 }
