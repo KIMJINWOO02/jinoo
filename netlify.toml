@@ -1,12 +1,14 @@
 [build]
-  command = "pnpm install && pnpm run build"
+  command = "pnpm install --frozen-lockfile && pnpm run build"
   publish = ".next"
 
 [build.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
+  NODE_VERSION = "18"
 
 [build.environment.pnpm]
   public_hoist_pattern = ["*", "!react", "!react-dom"]
+  store_directory = ".pnpm-store"
 
 [[redirects]]
   from = "/*"
