@@ -11,7 +11,6 @@ if (!apiKey || apiKey === 'your_openai_api_key_here') {
 
 const openai = new OpenAI({
   apiKey: apiKey,
-  organization: process.env.OPENAI_ORG_ID, // If you have an organization ID
 });
 
 /**
@@ -44,6 +43,7 @@ export const generateImage = async (
 ): Promise<string> => {
   try {
     const response = await openai.images.generate({
+      model: 'dall-e-2',
       prompt: prompt,
       n: 1,
       size: size,
