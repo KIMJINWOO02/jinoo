@@ -11,6 +11,7 @@ if (!apiKey || apiKey === 'your_openai_api_key_here') {
 
 const openai = new OpenAI({
   apiKey: apiKey,
+  organization: process.env.OPENAI_ORG_ID, // If you have an organization ID
 });
 
 /**
@@ -50,15 +51,15 @@ export const generateImage = async (
       size: size,
       style: style,
       quality: 'standard',
+      response_format: 'url',
     });
 
-    const imageData = response.data;
-    if (!imageData || !Array.isArray(imageData) || imageData.length === 0) {
-      throw new Error('No image data received from OpenAI');
+    if (!response.data || !response.data[0] || !response.data[0].url) {
+      throw new Error('No image URL received from OpenAI');
     }
-    return imageData[0].url || '';
+    return response.data[0].url;
   } catch (error) {
-    console.error('Error generating image:', error);
+    console.error('Image generation error:', error);
     throw new Error('Failed to generate image');
   }
 };
