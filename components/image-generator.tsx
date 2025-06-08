@@ -47,6 +47,7 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
     });
 
     try {
+      console.log('Sending request to generate image with prompt:', prompt.trim());
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: {
@@ -60,15 +61,13 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate image');
-      }
-
       const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || '이미지 생성에 실패했습니다');
+      console.log('API Response:', data);
+
+      if (!response.ok || !data.success) {
+        const errorMessage = data?.error || '이미지 생성에 실패했습니다';
+        console.error('API Error:', errorMessage);
+        throw new Error(errorMessage);
       }
 
       // 이미지 URL이 유효한지 확인
