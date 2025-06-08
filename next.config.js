@@ -6,7 +6,19 @@ const nextConfig = {
     unoptimized: true,
   },
   webpack: (config) => {
-    config.resolve.fallback = { fs: false, net: false, tls: false };
+    config.resolve.fallback = {
+      fs: false,
+      net: false,
+      tls: false,
+      path: false,
+      crypto: false,
+      stream: false,
+      zlib: false,
+      http: false,
+      https: false,
+      os: false,
+      url: false
+    };
     return config;
   },
   env: {

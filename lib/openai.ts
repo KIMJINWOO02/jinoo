@@ -11,6 +11,8 @@ if (!apiKey || apiKey === 'your_openai_api_key_here') {
 
 const openai = new OpenAI({
   apiKey: apiKey,
+  baseURL: 'https://api.openai.com/v1',
+  dangerouslyAllowBrowser: true
 });
 
 /**
