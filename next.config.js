@@ -48,14 +48,7 @@ const nextConfig = {
     return config;
   },
   
-  // API 설정
-  api: {
-    responseLimit: '8mb',
-    bodyParser: {
-      sizeLimit: '8mb',
-    },
-  },
-  
+  // API 요청 크기 제한 설정 (Next.js 13+에서는 route.js에서 직접 설정)
   // 보안 헤더
   async headers() {
     return [
