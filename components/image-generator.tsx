@@ -77,6 +77,15 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
       console.log('이미지 생성 요청 시작...');
       
       // API 요청
+      const requestBody = {
+        prompt: `${prompt.trim()} - ${style === 'vivid' ? '생동감 있는' : '자연스러운'} 스타일`,
+        n: 1,
+        size,
+        style
+      };
+      
+      console.log('API 요청 본문:', JSON.stringify(requestBody, null, 2));
+      
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         headers: {
@@ -84,11 +93,7 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
           'Cache-Control': 'no-cache',
           'x-session-id': sessionId,
         },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-          size,
-          style,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const endTime = Date.now();
@@ -129,35 +134,37 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
         console.error('API 오류:', errorMessage);
         throw new Error(errorMessage);
       }
-
+      
       if (!data.success) {
-        console.error('API 실패 응답:', data);
-        throw new Error(data.error || '이미지 생성에 실패했습니다');
+        const errorMessage = data.error || '알 수 없는 오류가 발생했습니다.';
+        console.error('API 요청 실패:', errorMessage);
+        throw new Error(errorMessage);
       }
-
-      // API 응답에서 이미지 URL 추출
-      const imageUrl = data.data?.[0]?.url;
       
-      if (!imageUrl) {
-        console.error('이미지 URL을 찾을 수 없음. 전체 응답:', data);
-        throw new Error('생성된 이미지 URL을 찾을 수 없습니다');
+      if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+        console.error('유효한 이미지 데이터가 없습니다:', data);
+        throw new Error('생성된 이미지 데이터를 찾을 수 없습니다.');
       }
-
-      // 이미지 생성 성공
-      console.log('이미지 생성 성공 - URL:', imageUrl);
-      lastRequestTime.current = Date.now(); // 마지막 요청 시간 업데이트
-      retryCount.current = 0; // 재시도 카운터 초기화
       
-      const newImage: GeneratedImage = {
-        id: Date.now().toString(),
-        url: imageUrl,
-        prompt: data.data[0]?.revised_prompt || prompt.trim(),
+      // 유효한 이미지 URL만 필터링
+      const validImages = data.data.filter((img: any) => img && img.url && img.url.startsWith('http'));
+      
+      if (validImages.length === 0) {
+        console.error('유효한 이미지 URL이 없습니다:', data.data);
+        throw new Error('생성된 이미지 URL을 찾을 수 없습니다.');
+      }
+      
+      // 생성된 이미지 URL을 상태에 저장
+      const newImages = validImages.map((img: any, index: number) => ({
+        id: `${Date.now()}-${index}`,
+        url: img.url,
+        prompt: img.revised_prompt || prompt,
         size,
         style,
-        timestamp: new Date(),
-      };
-
-      setGeneratedImages(prev => [newImage, ...prev].slice(0, 10)); // 최대 10개 이미지 유지
+        timestamp: new Date()
+      }));
+      
+      setGeneratedImages(prev => [...newImages, ...prev].slice(0, 10)); // 최대 10개 이미지 유지
       setPrompt(''); // 프롬프트 초기화
       toast.success('이미지가 성공적으로 생성되었습니다!');
     } catch (error) {
