@@ -46,22 +46,51 @@ export default function ImageGenerator() {
     try {
       setProgress('OpenAI API에 요청을 보내는 중...');
       
-      const response = await fetch('/api/generate-image', {
+      console.log('API 요청 시작:', {
+        url: '/api/generate-image',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: prompt,
-          n: 1,
-          size: '1024x1024',
-        }),
+        prompt: prompt
       });
 
-      const responseData = await response.json();
+      let response;
+      try {
+        response = await fetch('/api/generate-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompt: prompt,
+            n: 1,
+            size: '1024x1024',
+          }),
+        });
+        console.log('API 응답 수신:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
+      } catch (fetchError) {
+        console.error('API 요청 실패:', fetchError);
+        throw new Error(`API 요청에 실패했습니다: ${fetchError.message}`);
+      }
+
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log('API 응답 데이터 파싱 완료:', responseData);
+      } catch (jsonError) {
+        console.error('API 응답 파싱 오류:', jsonError);
+        throw new Error('API 응답을 처리하는 중 오류가 발생했습니다.');
+      }
+      console.log('API 응답 데이터:', JSON.stringify(responseData, null, 2));
       
       if (!response.ok) {
-        console.error('API 응답 오류:', responseData);
+        console.error('API 응답 오류:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: responseData
+        });
         throw new Error(
           responseData.error || 
           `이미지 생성에 실패했습니다. (상태 코드: ${response.status})`
@@ -69,17 +98,28 @@ export default function ImageGenerator() {
       }
 
       if (!responseData.success) {
+        console.error('API 요청 실패:', responseData);
         throw new Error(responseData.error || '알 수 없는 오류가 발생했습니다.');
       }
 
       setProgress('이미지를 불러오는 중...');
       
-      if (responseData.data && Array.isArray(responseData.data)) {
-        setImages(responseData.data);
+      if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
+        // URL이 있는 이미지만 필터링
+        const validImages = responseData.data.filter(img => img && img.url);
+        
+        if (validImages.length === 0) {
+          console.error('유효한 이미지 URL이 없습니다:', responseData.data);
+          throw new Error('생성된 이미지 URL을 찾을 수 없습니다.');
+        }
+        
+        console.log('유효한 이미지 데이터:', validImages);
+        setImages(validImages);
         toast.success('이미지 생성 완료!', {
           description: '이미지가 성공적으로 생성되었습니다.'
         });
       } else {
+        console.error('유효하지 않은 응답 형식:', responseData);
         throw new Error('유효하지 않은 응답 형식입니다.');
       }
       

@@ -56,13 +56,24 @@ export async function POST(request: Request) {
     console.log(`프롬프트: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`);
     
     // OpenAI 클라이언트 초기화
+    console.log('OpenAI 클라이언트 초기화 중...');
     const openai = new OpenAI({
       apiKey: apiKey,
       timeout: 30000, // 30초 타임아웃
     });
+    console.log('OpenAI 클라이언트 초기화 완료');
 
     // 이미지 생성 요청
     try {
+      console.log('OpenAI API 호출 파라미터:', {
+        model: 'dall-e-3',
+        prompt: prompt.trim().substring(0, 100) + (prompt.length > 100 ? '...' : ''),
+        n: Math.min(parseInt(n), 4),
+        size: size,
+        quality: 'hd',
+        response_format: 'url',
+      });
+
       const response = await openai.images.generate({
         model: 'dall-e-3',
         prompt: prompt.trim(),
@@ -72,26 +83,51 @@ export async function POST(request: Request) {
         response_format: 'url',
       });
 
-      console.log('OpenAI API 응답 수신');
+      console.log('OpenAI API 응답 수신:', JSON.stringify(response, null, 2));
       
       if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+        console.error('유효한 이미지 데이터가 없습니다.');
         throw new Error('OpenAI API에서 유효한 응답을 받지 못했습니다.');
+      }
+
+      // 응답 데이터 유효성 검사
+      const validImages = response.data.filter(img => {
+        const isValid = img && typeof img.url === 'string' && img.url.startsWith('http');
+        if (!isValid) {
+          console.error('유효하지 않은 이미지 데이터:', img);
+        }
+        return isValid;
+      });
+
+      if (validImages.length === 0) {
+        throw new Error('생성된 이미지 URL을 찾을 수 없습니다.');
       }
 
       // 성공 응답
       const result = {
         success: true,
-        data: response.data.map(img => ({
+        data: validImages.map(img => ({
           url: img.url,
           revised_prompt: img.revised_prompt || prompt
         }))
       };
 
-      console.log('이미지 생성 성공!');
+      console.log('이미지 생성 성공!', JSON.stringify(result, null, 2));
       return NextResponse.json(result, { status: 200, headers });
       
     } catch (error) {
-      console.error('OpenAI API 호출 오류:', error);
+      console.error('OpenAI API 호출 오류:', {
+        message: error.message,
+        code: error.code,
+        status: error.status,
+        response: error.response ? {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          headers: error.response.headers,
+          data: error.response.data
+        } : 'No response',
+        stack: error.stack
+      });
       
       let statusCode = 500;
       let errorMessage = '이미지 생성 중 오류가 발생했습니다.';

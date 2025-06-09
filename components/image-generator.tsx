@@ -135,20 +135,23 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
         throw new Error(data.error || '이미지 생성에 실패했습니다');
       }
 
-      if (!data.imageUrl) {
-        console.error('이미지 URL 누락:', data);
-        throw new Error('생성된 이미지 URL을 받지 못했습니다');
+      // API 응답에서 이미지 URL 추출
+      const imageUrl = data.data?.[0]?.url;
+      
+      if (!imageUrl) {
+        console.error('이미지 URL을 찾을 수 없음. 전체 응답:', data);
+        throw new Error('생성된 이미지 URL을 찾을 수 없습니다');
       }
 
       // 이미지 생성 성공
-      console.log('이미지 생성 성공 - URL 길이:', data.imageUrl.length);
+      console.log('이미지 생성 성공 - URL:', imageUrl);
       lastRequestTime.current = Date.now(); // 마지막 요청 시간 업데이트
       retryCount.current = 0; // 재시도 카운터 초기화
       
       const newImage: GeneratedImage = {
         id: Date.now().toString(),
-        url: data.imageUrl,
-        prompt: prompt.trim(),
+        url: imageUrl,
+        prompt: data.data[0]?.revised_prompt || prompt.trim(),
         size,
         style,
         timestamp: new Date(),
@@ -215,8 +218,8 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4">
-      <Card className="mb-6">
+    <div className="w-full max-w-4xl mx-auto p-4 min-h-screen flex flex-col">
+      <Card className="mb-6 flex-shrink-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl font-bold">
             <Wand2 className="w-6 h-6 text-primary" />
@@ -321,7 +324,7 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
         </CardContent>
       </Card>
       
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto pb-16">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold flex items-center space-x-2">
             <ImageIcon className="w-5 h-5" />
@@ -378,9 +381,9 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {generatedImages.map((image) => (
-              <Card key={image.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
+              <Card key={image.id} className="overflow-hidden group hover:shadow-lg transition-shadow h-full flex flex-col">
                 <div className="aspect-square relative">
                   <Image
                     src={image.url}
@@ -441,6 +444,8 @@ export function ImageGenerator({ sessionId }: ImageGeneratorProps) {
           </div>
         )}
       </div>
+      {/* 하단 여백을 위한 빈 공간 */}
+      <div className="h-16 flex-shrink-0"></div>
     </div>
   );
 }
