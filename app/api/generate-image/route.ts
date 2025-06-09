@@ -2,10 +2,14 @@ import { NextRequest } from 'next/server';
 import OpenAI from 'openai';
 
 // 환경 변수 로드 확인
-console.log('환경 변수 로드 상태:', {
-  NODE_ENV: process.env.NODE_ENV,
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY ? '설정됨' : '설정되지 않음'
-});
+const isDev = process.env.NODE_ENV === 'development';
+
+if (isDev) {
+  console.log('환경 변수 로드 상태:', {
+    NODE_ENV: process.env.NODE_ENV,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? '설정됨' : '설정되지 않음'
+  });
+}
 
 // CORS 헤더 설정
 const corsHeaders = {
@@ -115,32 +119,43 @@ export async function POST(request: NextRequest) {
       throw new Error(`OpenAI API 호출 중 오류가 발생했습니다: ${apiError.message}`);
     }
 
-    console.log(`[${requestId}] OpenAI API 응답 수신`);
-    console.log(`[${requestId}] 응답 데이터:`, JSON.stringify(apiResponse, null, 2));
+    if (isDev) {
+      console.log(`[${requestId}] OpenAI API 응답 수신`);
+      console.log(`[${requestId}] 응답 데이터:`, JSON.stringify(apiResponse, null, 2));
+    }
 
     if (!apiResponse || !apiResponse.data || !Array.isArray(apiResponse.data) || apiResponse.data.length === 0) {
-      console.error(`[${requestId}] 유효하지 않은 응답 데이터:`, apiResponse);
+      const errorMsg = `[${requestId}] 유효하지 않은 응답 데이터`;
+      if (isDev) console.error(errorMsg, apiResponse);
       throw new Error('OpenAI API에서 유효한 응답을 받지 못했습니다.');
     }
 
-    const imageUrl = apiResponse.data[0]?.url;
-    if (!imageUrl) {
-      console.error(`[${requestId}] 이미지 URL이 없습니다. 응답 데이터:`, apiResponse);
+    const imageData = apiResponse.data[0];
+    if (!imageData?.url) {
+      const errorMsg = `[${requestId}] 이미지 URL이 없습니다`;
+      if (isDev) console.error(errorMsg, apiResponse);
       throw new Error('생성된 이미지 URL을 받지 못했습니다.');
     }
 
-    console.log(`[${requestId}] 이미지 생성 성공 - URL 길이:`, imageUrl.length);
+    if (isDev) {
+      console.log(`[${requestId}] 이미지 생성 성공 - URL 길이:`, imageData.url.length);
+    }
     
     const responseData = {
       success: true,
-      imageUrl: imageUrl,
+      data: [{
+        url: imageData.url,
+        revised_prompt: imageData.revised_prompt || prompt
+      }],
       requestId: requestId
     };
     
-    console.log(`[${requestId}] 최종 응답 데이터:`, JSON.stringify({
-      ...responseData,
-      imageUrl: `${imageUrl.substring(0, 50)}...` // URL의 일부만 로깅
-    }, null, 2));
+    if (isDev) {
+      console.log(`[${requestId}] 최종 응답 데이터:`, JSON.stringify({
+        ...responseData,
+        imageUrl: responseData.data[0].url.substring(0, 50) + '...' // URL의 일부만 로깅
+      }, null, 2));
+    }
     
     const response = new Response(
       JSON.stringify(responseData),

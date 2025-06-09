@@ -74,12 +74,17 @@ export default function ImageGenerator() {
       }
 
       setProgress('이미지를 불러오는 중...');
-      setImages(responseData.data || []);
       
-      // 성공 토스트 메시지
-      toast.success('이미지 생성 완료!', {
-        description: '이미지가 성공적으로 생성되었습니다.'
-      });
+      if (responseData.data && Array.isArray(responseData.data)) {
+        setImages(responseData.data);
+        
+        // 성공 토스트 메시지
+        toast.success('이미지 생성 완료!', {
+          description: '이미지가 성공적으로 생성되었습니다.'
+        });
+      } else {
+        throw new Error('유효하지 않은 응답 형식입니다.');
+      }
       
     } catch (err) {
       console.error('이미지 생성 오류:', err);
@@ -109,8 +114,8 @@ export default function ImageGenerator() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-xl overflow-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8 flex flex-col">
+      <Card className="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-xl overflow-hidden flex-1 flex flex-col">
         <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
           <CardTitle className="text-2xl md:text-3xl font-bold">
             AI 이미지 생성기
@@ -120,7 +125,7 @@ export default function ImageGenerator() {
           </p>
         </CardHeader>
         
-        <CardContent className="p-6">
+        <CardContent className="p-6 flex-1">
           <form onSubmit={generateImage} className="space-y-6">
             <div className="flex flex-col space-y-4">
               <div className="relative">
@@ -172,20 +177,37 @@ export default function ImageGenerator() {
 
           <div 
             ref={imageContainerRef}
-            className={`mt-8 transition-all duration-300 ${isGenerating ? 'opacity-50' : 'opacity-100'}`}
+            className={`mt-8 transition-all duration-300 flex-1 ${isGenerating ? 'opacity-50' : 'opacity-100'}`}
           >
             {images.length > 0 ? (
-              <div className="space-y-8">
-                <div className="flex justify-between items-center">
+              <div className="space-y-8 w-full">
+                <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white">생성된 이미지</h3>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                    className="text-sm"
-                  >
-                    다시 생성하기
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                      className="text-sm"
+                    >
+                      다시 생성하기
+                    </Button>
+                    {images[0]?.url && (
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = images[0].url;
+                          link.download = `ai-image-${Date.now()}.png`;
+                          link.click();
+                        }}
+                        className="text-sm bg-blue-600 hover:bg-blue-700"
+                      >
+                        이미지 저장
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 gap-6">
