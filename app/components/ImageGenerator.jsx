@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Loader2, AlertCircle, ImagePlus } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 export default function ImageGenerator() {
   const [prompt, setPrompt] = useState('');
@@ -78,10 +78,8 @@ export default function ImageGenerator() {
       setImages(responseData.data || []);
       
       // 성공 토스트 메시지
-      toast({
-        title: '이미지 생성 완료!',
-        description: '이미지가 성공적으로 생성되었습니다.',
-        variant: 'default',
+      toast.success('이미지 생성 완료!', {
+        description: '이미지가 성공적으로 생성되었습니다.'
       });
       
     } catch (err) {
@@ -100,10 +98,8 @@ export default function ImageGenerator() {
       setError(errorMessage);
       
       // 에러 토스트 메시지
-      toast({
-        title: '오류 발생',
-        description: errorMessage,
-        variant: 'destructive',
+      toast.error('오류 발생', {
+        description: errorMessage
       });
       
     } finally {
