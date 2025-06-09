@@ -15,7 +15,6 @@ export default function ImageGenerator() {
   const [progress, setProgress] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const imageContainerRef = useRef(null);
-  const { toast } = useToast();
   
   // 이미지 컨테이너 높이 조정
   useEffect(() => {
