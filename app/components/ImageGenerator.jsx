@@ -34,7 +34,7 @@ export default function ImageGenerator() {
     e.preventDefault();
     
     if (!prompt.trim()) {
-      setError('이미지 생성을 위한 설명을 입력해주세요.');
+      toast.error('이미지 생성을 위한 설명을 입력해주세요.');
       return;
     }
 
@@ -95,21 +95,16 @@ export default function ImageGenerator() {
         errorMessage = '요청 한도에 도달했습니다. 잠시 후 다시 시도해주세요.';
       } else if (err.message.includes('401')) {
         errorMessage = '인증 오류가 발생했습니다. 관리자에게 문의해주세요.';
-      } else if (err.message) {
-        errorMessage = err.message;
+      } else if (err.message.includes('timeout') || err.message.includes('시간 초과')) {
+        errorMessage = '요청 시간이 초과되었습니다. 네트워크 상태를 확인해주세요.';
       }
       
       setError(errorMessage);
-      
-      // 에러 토스트 메시지
-      toast.error('오류 발생', {
-        description: errorMessage
-      });
-      
+      toast.error(`이미지 생성 실패: ${errorMessage}`);
     } finally {
       setIsLoading(false);
+      setIsGenerating(false);
       setProgress('');
-      setTimeout(() => setIsGenerating(false), 1000);
     }
   };
 
