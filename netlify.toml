@@ -4,15 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  NPM_FLAGS = "--legacy-peer-deps"
 
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["openai"]
   included_files = [".env.local"]
-  timeout = 30  # 30초 타임아웃
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  timeout = 30
