@@ -46,15 +46,16 @@ export default function ImageGenerator() {
     try {
       setProgress('OpenAI API에 요청을 보내는 중...');
       
+      const apiUrl = '/api/generate';
       console.log('API 요청 시작:', {
-        url: '/api/generate',
+        url: apiUrl,
         method: 'POST',
         prompt: prompt
       });
 
       let response;
       try {
-        response = await fetch('/api/generate', {
+        response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -66,7 +67,9 @@ export default function ImageGenerator() {
         console.log('API 응답 수신:', {
           status: response.status,
           statusText: response.statusText,
-          ok: response.ok
+          ok: response.ok,
+          url: response.url,
+          headers: Object.fromEntries(response.headers.entries())
         });
       } catch (fetchError) {
         console.error('API 요청 실패:', fetchError);
