@@ -1,26 +1,17 @@
 [build]
-  base = "/"
-  command = "pnpm install && pnpm approve-builds && pnpm run build"
-  publish = "/.next"
-  node = "20"
-
-[functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["openai", "axios"]
-  included_files = [".env.local", "lib/openai.ts"]
-  timeout = 60  # 60초로 타임아웃 증가
-  node_bundler = "esbuild"
-  
-[functions.setup]
-  command = "npm install openai axios"
+  command = "npm install && npm run build"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
   NODE_ENV = "production"
 
-[context.production]
-  command = "pnpm install && pnpm run build"
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["openai"]
+  included_files = [".env.local"]
+  timeout = 30  # 30초 타임아웃
 
-  [context.production.environment]
-    NODE_VERSION = "20"
-    NODE_ENV = "production"
+[dev]
+  framework = "next"
+  targetPort = 3000
