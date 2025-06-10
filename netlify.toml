@@ -1,24 +1,29 @@
+# 기본 빌드 설정
 [build]
   command = "npm run build"
   publish = ".next"
   functions = ".next/server"
 
+# 환경 변수
 [build.environment]
   NODE_VERSION = "18"
   NODE_ENV = "production"
 
+# 함수 설정
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["openai"]
   included_files = [".env.local"]
   timeout = 30
 
+# API 경로 리다이렉션
 [[redirects]]
-  from = "/api/generate-image"
-  to = "/api/generate"
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
   status = 200
   force = true
 
+# SPA 호환성을 위한 리다이렉션
 [[redirects]]
   from = "/*"
   to = "/index.html"
