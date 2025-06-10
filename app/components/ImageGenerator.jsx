@@ -48,7 +48,7 @@ export default function ImageGenerator() {
       
       // API 엔드포인트를 명시적으로 지정하고 캐시 방지를 위해 타임스탬프 추가
       const timestamp = new Date().getTime();
-      const apiUrl = `/api/generate?t=${timestamp}`; // 캐시 방지를 위한 타임스탬프 추가
+      const apiUrl = `https://${window.location.host}/api/generate?t=${timestamp}`; // 전체 URL 사용
       console.log('API 요청 시작:', {
         url: apiUrl,
         method: 'POST',
@@ -61,17 +61,14 @@ export default function ImageGenerator() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompt: prompt
-          }),
-          cache: 'no-store', // 캐시 방지
-          headers: {
-            'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
             'Expires': '0'
           },
+          body: JSON.stringify({
+            prompt: prompt
+          }),
+          cache: 'no-store' // 캐시 방지
         });
         console.log('API 응답 수신:', {
           status: response.status,
