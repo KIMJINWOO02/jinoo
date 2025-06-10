@@ -9,8 +9,14 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["openai"]
+  included_files = [".env.local"]
+  node_bundler = "esbuild"
+  timeout = 30  # 30초 타임아웃
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
