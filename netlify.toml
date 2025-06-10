@@ -4,10 +4,14 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  NODE_ENV = "production"
 
 [functions]
   node_bundler = "esbuild"
-  directory = "app/api"
+  directory = ".next/server/app/api"
+  external_node_modules = ["openai"]
+  included_files = [".env.local"]
+  timeout = 30
 
 # API 경로 리다이렉션
 [[redirects]]
@@ -16,7 +20,13 @@
   status = 200
   force = true
 
-# 모든 요청을 Next.js로 전달
+# 모든 API 요청을 함수로 라우팅
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# 모든 정적 파일 요청
 [[redirects]]
   from = "/*"
   to = "/index.html"
