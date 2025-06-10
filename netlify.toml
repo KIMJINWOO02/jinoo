@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   publish = ".next"
+  functions = ".next/server"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -8,7 +9,6 @@
 
 [functions]
   node_bundler = "esbuild"
-  directory = ".next/server/app/api"
   external_node_modules = ["openai"]
   included_files = [".env.local"]
   timeout = 30
@@ -20,13 +20,6 @@
   force = true
 
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
-
-[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = true
