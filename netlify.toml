@@ -1,7 +1,7 @@
 [build]
   command = "npm run build"
   publish = ".next"
-  functions = ".next/server"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -10,7 +10,6 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["openai"]
-  included_files = [".env.local"]
   timeout = 30
 
 [[redirects]]
