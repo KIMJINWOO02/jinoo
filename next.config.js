@@ -1,5 +1,34 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // 캐시 방지 설정
+  generateBuildId: async () => {
+    return 'build-' + Date.now();
+  },
+  
+  // API 경로 리다이렉션
+  async rewrites() {
+    return [
+      {
+        source: '/api/generate-image',
+        destination: '/api/generate',
+      },
+    ];
+  },
+  
+  // 캐시 제어 헤더
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
+        ],
+      },
+    ];
+  },
   reactStrictMode: true,
   swcMinify: true,
   
