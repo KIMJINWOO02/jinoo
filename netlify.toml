@@ -13,21 +13,20 @@
   included_files = [".env.local"]
   timeout = 30
 
-# API 경로 리다이렉션
 [[redirects]]
   from = "/api/generate-image"
   to = "/api/generate"
   status = 200
   force = true
 
-# 모든 API 요청을 함수로 라우팅
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+  force = true
 
-# 모든 정적 파일 요청
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = true
