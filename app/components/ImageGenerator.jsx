@@ -47,22 +47,20 @@ export default function ImageGenerator() {
       setProgress('OpenAI API에 요청을 보내는 중...');
       
       console.log('API 요청 시작:', {
-        url: '/api/generate-image',
+        url: '/api/generate',
         method: 'POST',
         prompt: prompt
       });
 
       let response;
       try {
-        response = await fetch('/api/generate-image', {
+        response = await fetch('/api/generate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: prompt,
-            n: 1,
-            size: '1024x1024',
+            prompt: prompt
           }),
         });
         console.log('API 응답 수신:', {
