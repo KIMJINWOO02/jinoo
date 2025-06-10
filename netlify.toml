@@ -7,6 +7,3 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["openai"]
-  included_files = [".env.local"]
-  timeout = 30
