@@ -7,3 +7,17 @@
 
 [functions]
   node_bundler = "esbuild"
+  directory = "app/api"
+
+# API 경로 리다이렉션
+[[redirects]]
+  from = "/api/generate-image"
+  to = "/api/generate"
+  status = 200
+  force = true
+
+# 모든 요청을 Next.js로 전달
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
